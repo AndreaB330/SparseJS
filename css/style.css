@@ -1,0 +1,154 @@
+body {
+    background-color: #141414;
+    color: white;
+    font-family: 'Open Sans', Sans-Serif, Arial, serif;
+    font-size: 1em;
+}
+
+#content {
+    width: 70%;
+    margin: auto;
+}
+
+nav {
+    display: table;
+    margin: 0.5em auto;
+}
+
+nav > a {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -khtml-user-select: none;
+    -ms-user-select: none;
+    margin: 0 1em;
+    color: #999999;
+}
+
+nav > a.active {
+    margin: 0 1em;
+    color: #FFFFFF;
+}
+
+nav > a:hover {
+    cursor: pointer;
+    color: #FFFFFF;
+}
+
+#header {
+    margin: 1.5em auto;
+    display: table;
+    height: 5em;
+    text-align: center;
+}
+
+#header > a {
+    float: left;
+    font-size: 5em;
+    line-height: 1em;
+}
+
+#header > a > img {
+    margin-left: 0.2em;
+    float: right;
+    height: 1em;
+}
+
+.matrix.demo {
+    margin: auto;
+}
+
+table.matrix {
+    text-align: center;
+}
+
+table.matrix > tr > td {
+    position: relative;
+}
+
+.vertical, .horizontal {
+    position: absolute;
+    background-color: #6d6d6d;
+    z-index: 1;
+}
+
+.vertical {
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    transform: translate(-50%, 0);
+    width: 1px;
+}
+
+.horizontal {
+    left: 0;
+    right: 0;
+    top: 50%;
+    transform: translate(0, -50%);
+    height: 1px;
+}
+
+.horizontal.tail {
+    right: 50%;
+}
+
+.vertical.tail {
+    bottom: 50%;
+}
+
+.horizontal.head {
+    left: 50%;
+}
+
+.vertical.head {
+    top: 50%;
+}
+
+.cell {
+    position: relative;
+
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+
+    border-radius: 2px;
+    border: 1px solid #6d6d6d;
+    background-color: #141414;
+    display: block;
+    padding: 0.3em;
+    min-width: 2em;
+    margin: 3px;
+    z-index: 100;
+}
+
+.cell.border, .cell.border:hover {
+    background-color: #141414;
+    color: #46baff;
+    border: 1px solid #1d4b68;
+    cursor: default;
+}
+
+.cell.root, .cell.root:hover {
+    background-color: #141414;
+    color: #ff553e;
+    border: 1px solid #a03629;
+    cursor: default;
+}
+
+.cell.empty {
+    border: 1px solid transparent;
+    background-color: transparent;
+    min-width: 2.2em;
+    min-height: 1em;
+}
+
+.cell.border.empty:hover {
+    border: 1px solid transparent;
+    background-color: transparent;
+    cursor: default;
+}
+
+.cell:hover {
+    border: 1px solid #a6a6a6;
+    background-color: #272727;
+    cursor: pointer;
+}

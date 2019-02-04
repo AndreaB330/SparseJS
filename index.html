@@ -1,0 +1,32 @@
+<html>
+<head>
+    <title>SparseMatrixJS Demo</title>
+    <!--<link rel="icon" href="{{ url_for('static',filename='images/favicon.ico') }}" type="image/x-icon"/>-->
+    <link rel="stylesheet" type="text/css" href="css/reset.css">
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+    <script type="text/javascript" src="js/sparse_matrix.js"></script>
+    <script type="text/javascript" src="js/ui.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+    <link rel="stylesheet" property="stylesheet"
+          href="//fonts.googleapis.com/css?family=Open+Sans:300,400,600&subset=latin,cyrillic" type="text/css">
+</head>
+<body>
+    <div id="header">
+        <a href="https://github.com/AndreaB330/SparseJS">
+            SparseJS
+            <img src="img/github.png" href="https://github.com/AndreaB330/SparseJS"/>
+        </a>
+    </div>
+    <nav>
+        <a class="btn active" id="btn-rand" onclick="DemoRandomMatrix()">Demo matrix</a>
+        <!--<a class="btn" id="btn-page-rank" onclick="DemoPageRank()">PageRank</a>-->
+    </nav>
+    <div id="content">
+
+        <table id="demo" class="matrix demo">
+        </table>
+    </div>
+    <script type="text/javascript" src="js/demo.js"></script>
+</body>
+</html>
