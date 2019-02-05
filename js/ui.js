@@ -27,25 +27,23 @@ function BuildMatrix(table_id, matrix, click_handler) {
             }
             cell.click(function(){click_handler(i,j);}); // set handler
             entry.append(cell);
-
             // draw links
-            if (i === -1 || FindNodeRight(matrix.rows[i], j - 1).next != null) {
+            if (i === -1 ||  matrix.rows[i].findNode(j - 1).next != null) {
                 // horizontal link
                 let tmp = $('<div class="horizontal"></div>');
-                if (i !== -1 && FindNodeRight(matrix.rows[i], j).next == null) tmp.addClass('tail');
+                if (i !== -1 && matrix.rows[i].findNode(j).next == null) tmp.addClass('tail');
                 if (j + 1 === mat.width) tmp.addClass('tail');
                 if (j === -1) tmp.addClass('head');
                 entry.append(tmp);
             }
-            if (j === -1 || FindNodeDown(matrix.columns[j], i - 1).next != null) {
+            if (j === -1 || matrix.columns[j].findNode(i - 1).next != null) {
                 // vertical link
                 let tmp = $('<div class="vertical"></div>');
-                if (j !== -1 && FindNodeDown(matrix.columns[j], i).next == null) tmp.addClass('tail');
+                if (j !== -1 && matrix.columns[j].findNode(i).next == null) tmp.addClass('tail');
                 if (i + 1 === mat.height) tmp.addClass('tail');
                 if (i === -1) tmp.addClass('head');
                 entry.append(tmp);
             }
-
             row.append(entry);
         }
         table.append(row);

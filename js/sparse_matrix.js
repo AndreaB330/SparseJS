@@ -2,6 +2,8 @@
  * SparseMatrix - compressed sparse matrix representation, stores only nonzero values.
  * Implemented as multi-linked-list that stores only non-zero cells and each cell has
  * link to first non-zero cell below and at right.
+ * @param {number} height - number of rows
+ * @param {number} width - number of columns
  * @class
  */
 function SparseMatrix(height, width) {
@@ -9,152 +11,155 @@ function SparseMatrix(height, width) {
     this.width = width;
     this.rows = new Array(height).fill(null);
     this.columns = new Array(width).fill(null);
-    for (let i = 0; i < this.height; i++) this.rows[i] = new LinkedNode(null);
-    for (let i = 0; i < this.width; i++) this.columns[i] = new LinkedNode(null);
-    this.default_value = 0; // not supported yet, 0 by default todo: add support
+    for (let i = 0; i < this.height; i++) this.rows[i] = new LinkedNode(0, -1);
+    for (let i = 0; i < this.width; i++) this.columns[i] = new LinkedNode(0, -1);
+    this.default_value = 0; // not supported yet, 0 by default
 }
 
 /**
- * SparseCell - represents one cell in matrix.
- * @param index_row - index of row, -1 for boundary cell.
- * @param index_col - index of column, -1 for boundary cell.
- * @param value - value stored in this cell.
+ * LinkedNode - node of linked list
+ * @param {number | *} value
+ * @param {number} index
+ * @param {LinkedNode} next - pointer to next node
  * @class
  */
-function SparseCell(index_row, index_col, value = null) {
-    this.index_row = index_row;
-    this.index_col = index_col;
+function LinkedNode(value, index, next = null) {
     this.value = value;
-}
-
-function LinkedNode(cell, next = null) {
-    this.cell = cell;
+    this.index = index;
     this.next = next;
 }
 
 /**
- * Find the first node below, where index_row is less than or equal to the given.
+ * Find the last node (starting from this) whose index is less or equal to the given one.
+ * @param {number} index
  */
-function FindNodeDown(node, index_row) {
-    while (node != null && node.next != null && node.next.cell.index_row <= index_row) {
+LinkedNode.prototype.findNode = function (index) {
+    let node = this;
+    while (node.next != null && node.next.index <= index) {
         node = node.next;
     }
     return node;
-}
+};
 
-/**
- * Find the first node at right, where index_col is less than or equal to the given.
- */
-function FindNodeRight(node, index_col) {
-    while (node != null && node.next != null && node.next.cell.index_col <= index_col) {
-        node = node.next;
-    }
-    return node;
-}
+SparseMatrix.prototype._checkIndices = function (index_row, index_col) {
+    if (index_row < 0 || index_row >= this.height) throw "Row index is out of range, row: " + index_row;
+    if (index_col < 0 || index_col >= this.width) throw "Column index is out of range, column: " + index_row;
+};
 
 /**
  * Set value at position (index_row, index_col)
- * @param index_row - index of row
- * @param index_col - index of column
- * @param value - value to set
+ * @param {number} index_row - index of row
+ * @param {number} index_col - index of column
+ * @param {number | *} value - value to set
  */
 SparseMatrix.prototype.set = function (index_row, index_col, value) {
-    if (index_row < 0 || index_row >= this.height) return;
-    if (index_col < 0 || index_col >= this.width) return;
-    let node_left = FindNodeRight(this.rows[index_row], index_col);
-    let node_above = FindNodeDown(this.columns[index_col], index_row);
-    if ((node_left.cell !== node_above.cell || node_left.cell == null || node_above.cell == null) && value !== this.default_value) {
-        // create cell
-        let cell = new SparseCell(index_row, index_col, value);
-        node_left.next = new LinkedNode(cell, node_left.next);
-        node_above.next = new LinkedNode(cell, node_above.next);
+    this._checkIndices(index_row, index_col);
+    let node_left = this.rows[index_row].findNode(index_col);
+    let node_above = this.columns[index_col].findNode(index_row);
+    if (node_left.index !== index_col && value !== this.default_value) {
+        // insert two nodes (vertical and horizontal)
+        node_left.next = new LinkedNode(value, index_col, node_left.next);
+        node_above.next = new LinkedNode(value, index_row, node_above.next);
     } else if (value !== this.default_value) {
-        // set value in existing cell
-        node_left.cell.value = value;
-    } else if (node_left.cell === node_above.cell) {
-        // remove cell
-        FindNodeRight(this.rows[index_row], index_col - 1).next = node_left.next;
-        FindNodeDown(this.columns[index_col], index_row - 1).next = node_above.next;
+        // update values in existing nodes
+        node_left.value = value;
+        node_above.value = value;
+    } else if (value === this.default_value) {
+        // remove nodes
+        this.rows[index_row].findNode(index_col - 1).next = node_left.next;
+        this.columns[index_col].findNode(index_row - 1).next = node_above.next;
     }
 };
 
 
 /**
  * Get value at position (index_row, index_col), return default_value if no such cell found
- * @param index_row - index of row
- * @param index_col - index of column
+ * @param {number} index_row - index of row
+ * @param {number} index_col - index of column
  */
 SparseMatrix.prototype.get = function (index_row, index_col) {
-    let node_col = FindNodeRight(this.rows[index_row], index_col);
-    let node_row = FindNodeDown(this.columns[index_col], index_row);
-    if (node_col.cell == null || node_row.cell == null || node_col.cell !== node_row.cell) {
+    this._checkIndices(index_row, index_col);
+    let node = this.rows[index_row].findNode(index_col);
+    if (node.index !== index_col) {
         return this.default_value;
     }
-    return node_row.cell.value;
+    return node.value;
 };
-
 
 /**
  * Checks if cell with given index of row and column has non-zero value
- * @param index_row - index of row
- * @param index_col - index of column
+ * @param {number} index_row - index of row
+ * @param {number} index_col - index of column
+ * @return {boolean}
  */
 SparseMatrix.prototype.present = function (index_row, index_col) {
-    let node_col = FindNodeRight(this.rows[index_row], index_col);
-    let node_row = FindNodeDown(this.columns[index_col], index_row);
-    return node_col.cell != null && node_row.cell != null && node_col.cell === node_row.cell;
+    this._checkIndices(index_row, index_col);
+    return this.rows[index_row].findNode(index_col).index === index_col;
 };
 
 /**
- * Multiplication of two given sparse matrices.
- * @param {SparseMatrix} a - first matrix
- * @param {SparseMatrix} b - second matrix
+ * Transpose matrix
+ */
+SparseMatrix.prototype.transpose = function () {
+    let tmp = this.columns;
+    this.columns = this.rows;
+    this.rows = tmp;
+    let tmp_2 = this.width;
+    this.width = this.height;
+    this.height = tmp_2;
+};
+
+/**
+ * Multiply this matrix by given matrix.
+ * @param {SparseMatrix} other
  * @returns {SparseMatrix} result of multiplication
  */
-function MatDotMat(a, b) {
-    // todo: refactoring
-    let res = new SparseMatrix();
-    for (let i = 0; i < a.height; i++) {
-        for (let j = 0; j < b.width; j++) {
-            let node_a = a.rows[i].next;
-            let node_b = b.columns[j].next;
+SparseMatrix.prototype.multiply = function (other) {
+    let res = new SparseMatrix(this.height, other.width);
+    for (let i = 0; i < this.height; i++) {
+        for (let j = 0; j < other.width; j++) {
+            let first_pointer = this.rows[i].next;
+            let second_pointer = other.columns[j].next;
             let dot_product = 0;
-            while (node_a != null && node_b != null) {
-                while (node_a != null && node_a.cell.index_col < node_b.cell.index_row) node_a = node_a.next;
-                if (node_a == null) break;
-                while (node_b != null && node_a.cell.index_col > node_b.cell.index_row) node_b = node_b.next;
-                if (node_b == null) break;
-                if (node_a.cell.index_col === node_b.cell.index_row) {
-                    dot_product += node_a.cell.value * node_b.cell.value;
-                    node_a = node_a.next;
-                    node_b = node_b.next;
+            while (first_pointer != null && second_pointer != null) {
+                while (first_pointer != null && first_pointer.index < second_pointer.index)
+                    first_pointer = first_pointer.next;
+                if (first_pointer == null) break;
+                while (second_pointer != null && first_pointer.index > second_pointer.index)
+                    second_pointer = second_pointer.next;
+                if (second_pointer == null) break;
+                if (first_pointer.index === second_pointer.index) {
+                    dot_product += first_pointer.value * second_pointer.value;
+                    first_pointer = first_pointer.next;
+                    second_pointer = second_pointer.next;
                 }
             }
             res.set(i, j, dot_product);
         }
     }
     return res;
-}
+};
 
 /**
- * Multiplication of matrix and vector.
- * Transforms vector of numbers into matrix with dimensions (n, 1) and then call MatDotMat.
- * @param {SparseMatrix} mat - given matrix.
+ * Multiply vector on matrix M*v.
+ * Transforms vector of numbers into matrix with dimensions (n, 1) and then call matrix-matrix multiplication.
  * @param {Array} vec - given vector.
  * @returns {Array} result of multiplication.
  */
-function MatDotVec(mat, vec) {
-    let m_vec = new SparseMatrix();
+SparseMatrix.prototype.multiplyVec = function (vec) {
+    let m_vec = new SparseMatrix(this.height, 1);
     for (let i = vec.length - 1; i >= 0; i--) {
         m_vec.set(i, 0, vec[i]);
     }
-    let m_res = MatDotMat(mat, m_vec);
-    let res = [];
+    let m_res = this.multiply(m_vec);
+    let res = new Array(vec.length);
+    let pointer = m_res.columns[0].next;
     for (let i = 0; i < vec.length; i++) {
-        res.push(m_res.get(i, 0));
+        while (pointer.index < i) pointer = pointer.next;
+        res[i] = pointer.value;
     }
     return res;
-}
+};
 
 /**
  * Construct SparseMatrix from the set of values with given row and column indices.
@@ -164,7 +169,7 @@ function MatDotVec(mat, vec) {
  */
 function SparseMatrixFromValues(values) {
     // todo: refactoring
-    let mat = new SparseMatrix();
+    /*let mat = new SparseMatrix();
     values.sort(function (a, b) {
         return b.index_row - a.index_row;
     });
@@ -194,7 +199,7 @@ function SparseMatrixFromValues(values) {
         cell_row[values[i].index_row].cell_right = vertical_ptr;
         cell_row[values[i].index_row] = vertical_ptr;
     }
-    return mat;
+    return mat;*/
 }
 
 // todo: SparseMatrix from two dimensional array
