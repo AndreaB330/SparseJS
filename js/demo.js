@@ -12,11 +12,9 @@ function DemoRandomMatrix() {
     active_btn = '#btn-rand';
     $(active_btn).addClass('active');
 
-    mat = new SparseMatrix();
-    mat.set(13, getRandomInt(0, 13), getRandomInt(-9, 99));
-    mat.set(getRandomInt(0, 13), 13, getRandomInt(-9, 99));
-    for (let i = 0; i < 10; i++) {
-        mat.set(getRandomInt(0, 13), getRandomInt(0, 13), getRandomInt(-9, 99));
+    mat = new SparseMatrix(14, 14);
+    for (let i = 0; i < 20; i++) {
+        mat.set(getRandomInt(0, mat.height - 1), getRandomInt(0, mat.width - 1), getRandomInt(-9, 99));
     }
 
     $('#content').html('<table id="demo" class="matrix demo"></table>');

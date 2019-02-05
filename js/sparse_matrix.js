@@ -4,67 +4,52 @@
  * link to first non-zero cell below and at right.
  * @class
  */
-function SparseMatrix() {
-    this.root = new SparseCell(-1, -1);
-    this.num_rows = 0;
-    this.num_cols = 0;
+function SparseMatrix(height, width) {
+    this.height = height;
+    this.width = width;
+    this.rows = new Array(height).fill(null);
+    this.columns = new Array(width).fill(null);
+    for (let i = 0; i < this.height; i++) this.rows[i] = new LinkedNode(null);
+    for (let i = 0; i < this.width; i++) this.columns[i] = new LinkedNode(null);
     this.default_value = 0; // not supported yet, 0 by default todo: add support
-    this.full_boundary = false; // not supported yet todo: add support
 }
 
 /**
- * SparseCell - node of multi-linked-list, represents one cell in matrix.
+ * SparseCell - represents one cell in matrix.
  * @param index_row - index of row, -1 for boundary cell.
  * @param index_col - index of column, -1 for boundary cell.
  * @param value - value stored in this cell.
- * @param cell_down - link to first non-zero cell below.
- * @param cell_right - link to first non-zero cell at right.
  * @class
  */
-function SparseCell(index_row, index_col, value = null, cell_down = null, cell_right = null) {
+function SparseCell(index_row, index_col, value = null) {
     this.index_row = index_row;
     this.index_col = index_col;
     this.value = value;
-    this.cell_down = cell_down;
-    this.cell_right = cell_right;
+}
+
+function LinkedNode(cell, next = null) {
+    this.cell = cell;
+    this.next = next;
 }
 
 /**
- * Insert cell to the right from this
- * @param {SparseCell} other - cell to insert
+ * Find the first node below, where index_row is less than or equal to the given.
  */
-SparseCell.prototype.InsertRight = function (other) {
-    other.cell_right = this.cell_right;
-    this.cell_right = other;
-};
-
-/**
- * Insert cell below this
- * @param {SparseCell} other - cell to insert
- */
-SparseCell.prototype.InsertDown = function (other) {
-    other.cell_down = this.cell_down;
-    this.cell_down = other;
-};
-
-/**
- * Find the first cell below, where index_row is less than or equal to the given.
- */
-function FindCellToDown(cell, index_row) {
-    while (cell != null && cell.cell_down != null && cell.cell_down.index_row <= index_row) {
-        cell = cell.cell_down;
+function FindNodeDown(node, index_row) {
+    while (node != null && node.next != null && node.next.cell.index_row <= index_row) {
+        node = node.next;
     }
-    return cell;
+    return node;
 }
 
 /**
- * Find the first cell at right, where index_col is less than or equal to the given.
+ * Find the first node at right, where index_col is less than or equal to the given.
  */
-function FindCellToRight(cell, index_col) {
-    while (cell != null && cell.cell_right != null && cell.cell_right.index_col <= index_col) {
-        cell = cell.cell_right;
+function FindNodeRight(node, index_col) {
+    while (node != null && node.next != null && node.next.cell.index_col <= index_col) {
+        node = node.next;
     }
-    return cell;
+    return node;
 }
 
 /**
@@ -74,30 +59,22 @@ function FindCellToRight(cell, index_col) {
  * @param value - value to set
  */
 SparseMatrix.prototype.set = function (index_row, index_col, value) {
-    // todo: refactoring, optimization, error for boundary cells
-    this.num_rows = Math.max(this.num_rows, index_row + 1);
-    this.num_cols = Math.max(this.num_cols, index_col + 1);
-    let boundary_cell_row = FindCellToDown(this.root, index_row);
-    let boundary_cell_col = FindCellToRight(this.root, index_col);
-    if (boundary_cell_row.index_row !== index_row) {
-        boundary_cell_row.InsertDown(new SparseCell(index_row, -1));
-        boundary_cell_row = boundary_cell_row.cell_down;
-    }
-    if (boundary_cell_col.index_col !== index_col) {
-        boundary_cell_col.InsertRight(new SparseCell(-1, index_col));
-        boundary_cell_col = boundary_cell_col.cell_right;
-    }
-    let cell_col = FindCellToRight(boundary_cell_row, index_col);
-    let cell_row = FindCellToDown(boundary_cell_col, index_row);
-    if (cell_col !== cell_row && value !== this.default_value) {
-        let cell = new SparseCell(index_row, index_col, value, cell_row.cell_down, cell_col.cell_right);
-        cell_col.cell_right = cell;
-        cell_row.cell_down = cell;
+    if (index_row < 0 || index_row >= this.height) return;
+    if (index_col < 0 || index_col >= this.width) return;
+    let node_left = FindNodeRight(this.rows[index_row], index_col);
+    let node_above = FindNodeDown(this.columns[index_col], index_row);
+    if ((node_left.cell !== node_above.cell || node_left.cell == null || node_above.cell == null) && value !== this.default_value) {
+        // create cell
+        let cell = new SparseCell(index_row, index_col, value);
+        node_left.next = new LinkedNode(cell, node_left.next);
+        node_above.next = new LinkedNode(cell, node_above.next);
     } else if (value !== this.default_value) {
-        cell_col.value = value;
-    } else {
-        FindCellToRight(boundary_cell_row, index_col - 1).cell_right = cell_col.cell_right;
-        FindCellToDown(boundary_cell_col, index_row - 1).cell_down = cell_row.cell_down;
+        // set value in existing cell
+        node_left.cell.value = value;
+    } else if (node_left.cell === node_above.cell) {
+        // remove cell
+        FindNodeRight(this.rows[index_row], index_col - 1).next = node_left.next;
+        FindNodeDown(this.columns[index_col], index_row - 1).next = node_above.next;
     }
 };
 
@@ -108,20 +85,24 @@ SparseMatrix.prototype.set = function (index_row, index_col, value) {
  * @param index_col - index of column
  */
 SparseMatrix.prototype.get = function (index_row, index_col) {
-    let boundary_cell_row = FindCellToDown(this.root, index_row);
-    let boundary_cell_col = FindCellToRight(this.root, index_col);
-    if (boundary_cell_row.index_row !== index_row) {
+    let node_col = FindNodeRight(this.rows[index_row], index_col);
+    let node_row = FindNodeDown(this.columns[index_col], index_row);
+    if (node_col.cell == null || node_row.cell == null || node_col.cell !== node_row.cell) {
         return this.default_value;
     }
-    if (boundary_cell_col.index_col !== index_col) {
-        return this.default_value;
-    }
-    let cell_col = FindCellToRight(boundary_cell_row, index_col);
-    let cell_row = FindCellToDown(boundary_cell_col, index_row);
-    if (cell_col !== cell_row) {
-        return this.default_value;
-    }
-    return cell_col.value;
+    return node_row.cell.value;
+};
+
+
+/**
+ * Checks if cell with given index of row and column has non-zero value
+ * @param index_row - index of row
+ * @param index_col - index of column
+ */
+SparseMatrix.prototype.present = function (index_row, index_col) {
+    let node_col = FindNodeRight(this.rows[index_row], index_col);
+    let node_row = FindNodeDown(this.columns[index_col], index_row);
+    return node_col.cell != null && node_row.cell != null && node_col.cell === node_row.cell;
 };
 
 /**
@@ -133,23 +114,23 @@ SparseMatrix.prototype.get = function (index_row, index_col) {
 function MatDotMat(a, b) {
     // todo: refactoring
     let res = new SparseMatrix();
-    for (let boundary_a_row = a.root; boundary_a_row != null; boundary_a_row = boundary_a_row.cell_down) {
-        for (let boundary_b_col = b.root; boundary_b_col != null; boundary_b_col = boundary_b_col.cell_right) {
-            let cell_a = boundary_a_row.cell_right;
-            let cell_b = boundary_b_col.cell_down;
+    for (let i = 0; i < a.height; i++) {
+        for (let j = 0; j < b.width; j++) {
+            let node_a = a.rows[i].next;
+            let node_b = b.columns[j].next;
             let dot_product = 0;
-            while (cell_a != null && cell_b != null) {
-                while (cell_a != null && cell_a.index_col < cell_b.index_row) cell_a = cell_a.cell_right;
-                if (cell_a == null) break;
-                while (cell_b != null && cell_a.index_col > cell_b.index_row) cell_b = cell_b.cell_down;
-                if (cell_b == null) break;
-                if (cell_a.index_col === cell_b.index_row) {
-                    dot_product += cell_a.value * cell_b.value;
-                    cell_a = cell_a.cell_right;
-                    cell_b = cell_b.cell_down;
+            while (node_a != null && node_b != null) {
+                while (node_a != null && node_a.cell.index_col < node_b.cell.index_row) node_a = node_a.next;
+                if (node_a == null) break;
+                while (node_b != null && node_a.cell.index_col > node_b.cell.index_row) node_b = node_b.next;
+                if (node_b == null) break;
+                if (node_a.cell.index_col === node_b.cell.index_row) {
+                    dot_product += node_a.cell.value * node_b.cell.value;
+                    node_a = node_a.next;
+                    node_b = node_b.next;
                 }
             }
-            res.set(boundary_a_row.index_row, boundary_b_col.index_col, dot_product);
+            res.set(i, j, dot_product);
         }
     }
     return res;
@@ -208,7 +189,7 @@ function SparseMatrixFromValues(values) {
             boundary_ptr.cell_right = tmp;
             boundary_ptr = vertical_ptr = tmp;
         }
-        vertical_ptr.InsertDown(new SparseCell(values[i].index_row, values[i].index_col, values[i].value));
+        vertical_ptr.cell_down = new SparseCell(values[i].index_row, values[i].index_col, values[i].value);
         vertical_ptr = vertical_ptr.cell_down;
         cell_row[values[i].index_row].cell_right = vertical_ptr;
         cell_row[values[i].index_row] = vertical_ptr;
