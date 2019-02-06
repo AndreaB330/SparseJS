@@ -81,5 +81,3 @@ function example_page_rank() {
     }
     console.log(page_rank);
 }
-
-example_page_rank();
