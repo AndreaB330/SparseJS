@@ -6,7 +6,7 @@
  * @param {number} width - number of columns
  * @class
  */
-function SparseMatrix(height, width) {
+function SparseMatrix(height = 0, width = 0) {
     this.height = height;
     this.width = width;
     this.rows = new Array(height).fill(null);
@@ -18,7 +18,7 @@ function SparseMatrix(height, width) {
 
 /**
  * LinkedNode - node of linked list
- * @param {number | *} value
+ * @param {number} value
  * @param {number} index
  * @param {LinkedNode} next - pointer to next node
  * @class
@@ -41,9 +41,32 @@ LinkedNode.prototype.findNode = function (index) {
     return node;
 };
 
+/**
+ * Make a copy of linked list
+ * @returns {LinkedNode}
+ */
+LinkedNode.prototype.copy = function () {
+    return new LinkedNode(this.value, this.index, (this.next != null ? this.next.copy() : null));
+};
+
+/**
+ * Make a copy of sparse matrix
+ * @returns {SparseMatrix}
+ */
+SparseMatrix.prototype.copy = function () {
+    let copy = new SparseMatrix(this.height, this.width);
+    for (let i = 0; i < this.height; i++) copy.rows[i] = this.rows[i].copy();
+    for (let i = 0; i < this.width; i++) copy.columns[i] = this.columns[i].copy();
+    return copy;
+};
+
 SparseMatrix.prototype._checkIndices = function (index_row, index_col) {
     if (index_row < 0 || index_row >= this.height) throw "Row index is out of range, row: " + index_row;
     if (index_col < 0 || index_col >= this.width) throw "Column index is out of range, column: " + index_row;
+};
+
+SparseMatrix.prototype._checkSquare = function () {
+    if (this.width !== this.height) throw "This operation cannot be applied to a non-square matrix";
 };
 
 /**
@@ -69,6 +92,7 @@ SparseMatrix.prototype.set = function (index_row, index_col, value) {
         this.rows[index_row].findNode(index_col - 1).next = node_left.next;
         this.columns[index_col].findNode(index_row - 1).next = node_above.next;
     }
+    return this;
 };
 
 
@@ -87,6 +111,19 @@ SparseMatrix.prototype.get = function (index_row, index_col) {
 };
 
 /**
+ * Reset current square matrix to identity matrix i.e. ones on main diagonal
+ */
+SparseMatrix.prototype.identity = function () {
+    this._checkSquare();
+    for (let i = 0; i < this.height; i++) this.rows[i] = new LinkedNode(0, -1);
+    for (let i = 0; i < this.width; i++) this.columns[i] = new LinkedNode(0, -1);
+    for (let i = 0; i < this.height; i++) {
+        this.set(i, i, 1);
+    }
+    return this;
+};
+
+/**
  * Checks if cell with given index of row and column has non-zero value
  * @param {number} index_row - index of row
  * @param {number} index_col - index of column
@@ -98,7 +135,7 @@ SparseMatrix.prototype.present = function (index_row, index_col) {
 };
 
 /**
- * Transpose matrix
+ * Transpose current matrix
  */
 SparseMatrix.prototype.transpose = function () {
     let tmp = this.columns;
@@ -107,6 +144,27 @@ SparseMatrix.prototype.transpose = function () {
     let tmp_2 = this.width;
     this.width = this.height;
     this.height = tmp_2;
+    return this;
+};
+
+/**
+ * Transforms sparse matrix into two dimensional array.
+ * @returns {Array}
+ */
+SparseMatrix.prototype.toArray = function () {
+    let array = [];
+    for (let i = 0; i < this.height; i++) {
+        let row = [];
+        for (let j = 0; j < this.width; j++) {
+            row.push(this.get(i, j));
+        }
+        array.push(row);
+    }
+    return array;
+};
+
+SparseMatrix.prototype.toJSON = function () {
+    return this.toArray();
 };
 
 /**
@@ -114,7 +172,7 @@ SparseMatrix.prototype.transpose = function () {
  * @param {SparseMatrix} other
  * @returns {SparseMatrix} result of multiplication
  */
-SparseMatrix.prototype.multiply = function (other) {
+SparseMatrix.prototype._multiplyMatMat = function (other) {
     let res = new SparseMatrix(this.height, other.width);
     for (let i = 0; i < this.height; i++) {
         for (let j = 0; j < other.width; j++) {
@@ -146,7 +204,7 @@ SparseMatrix.prototype.multiply = function (other) {
  * @param {Array} vec - given vector.
  * @returns {Array} result of multiplication.
  */
-SparseMatrix.prototype.multiplyVec = function (vec) {
+SparseMatrix.prototype._multiplyMatVec = function (vec) {
     let m_vec = new SparseMatrix(this.height, 1);
     for (let i = vec.length - 1; i >= 0; i--) {
         m_vec.set(i, 0, vec[i]);
@@ -159,6 +217,77 @@ SparseMatrix.prototype.multiplyVec = function (vec) {
         res[i] = pointer.value;
     }
     return res;
+};
+
+
+/**
+ * Multiply matrix by number
+ * @param {number} other
+ * @return {SparseMatrix}
+ */
+SparseMatrix.prototype._mulMatNum = function (other) {
+    let res = this.copy();
+    res.rows.forEach(function (ptr) {
+        while (ptr != null) {
+            ptr.value *= other;
+            ptr = ptr.next;
+        }
+    });
+    res.columns.forEach(function (ptr) {
+        while (ptr != null) {
+            ptr.value *= other;
+            ptr = ptr.next;
+        }
+    });
+    return res;
+};
+
+/**
+ * Multiply matrix by number, sparse matrix or vector
+ * @param {number | SparseMatrix | Array} other
+ * @return {SparseMatrix | Array}
+ */
+SparseMatrix.prototype.mul = function (other) {
+    if (typeof other == 'number') {
+        return this._mulMatNum(other);
+    }
+    if (other instanceof SparseMatrix) {
+        return this._multiplyMatMat(other);
+    }
+    if (other instanceof Array) {
+        return this._multiplyMatVec(other);
+    }
+};
+
+/**
+ * Change shape of matrix
+ * @param {number} new_height
+ * @param {number} new_width
+ */
+SparseMatrix.prototype.reshape = function (new_height, new_width) {
+    this.height = new_height;
+    this.width = new_width;
+    while (this.rows.length < this.height) this.rows.push(new LinkedNode(0, -1));
+    while (this.columns.length < this.width) this.columns.push(new LinkedNode(0, -1));
+    while (this.rows.length > this.height) this.rows.pop();
+    while (this.columns.length > this.width) this.columns.pop();
+    return this;
+};
+
+/**
+ * Construct sparse matrix from two dimensional array
+ * @param {Array} array
+ * @return {SparseMatrix}
+ */
+SparseMatrix.prototype.fromArray = function (array) {
+    // todo: validate param
+    this.reshape(array.length, array[0].length);
+    for (let i = 0; i < this.height; i++) {
+        for (let j = 0; j < this.width; j++) {
+            this.set(i, j, array[i][j]);
+        }
+    }
+    return this;
 };
 
 /**
