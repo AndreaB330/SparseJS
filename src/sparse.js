@@ -21,12 +21,14 @@ function SparseMatrix(height = 0, width = 0) {
  * @param {number} value
  * @param {number} index
  * @param {LinkedNode} next - pointer to next node
+ * @param {LinkedNode} twin - pointer to twin node (row node has twin column node)
  * @class
  */
-function LinkedNode(value, index, next = null) {
+function LinkedNode(value, index, next = null, twin = null) {
     this.value = value;
     this.index = index;
     this.next = next;
+    this.twin = twin;
 }
 
 /**
@@ -46,7 +48,35 @@ LinkedNode.prototype.findNode = function (index) {
  * @returns {LinkedNode}
  */
 LinkedNode.prototype.copy = function () {
-    return new LinkedNode(this.value, this.index, (this.next != null ? this.next.copy() : null));
+    return new LinkedNode(this.value, this.index, (this.next != null ? this.next.copy() : null), this.twin);
+};
+
+/**
+ * Compute associative function on linked list
+ * @param {function} func
+ * @param {number} default_value
+ * @return {number} result
+ */
+LinkedNode.prototype.compute = function (func, default_value) {
+    let ptr = this;
+    let result = default_value;
+    while (ptr != null) {
+        result = func(result, ptr.value);
+        ptr = ptr.next;
+    }
+    return result;
+};
+
+/**
+ * Apply function to all values in list
+ * @param {function} func
+ */
+LinkedNode.prototype.map = function (func) {
+    let ptr = this;
+    while (ptr != null) {
+        ptr.twin.value = ptr.value = func(ptr.value);
+        ptr = ptr.next;
+    }
 };
 
 /**
@@ -58,6 +88,10 @@ SparseMatrix.prototype.copy = function () {
     for (let i = 0; i < this.height; i++) copy.rows[i] = this.rows[i].copy();
     for (let i = 0; i < this.width; i++) copy.columns[i] = this.columns[i].copy();
     return copy;
+};
+
+SparseMatrix.prototype._checkMapFunction = function(func) {
+    if (func(this.default_value) !== this.default_value) throw "Cannot apply function that change default value.";
 };
 
 SparseMatrix.prototype._checkIndices = function (index_row, index_col) {
@@ -83,6 +117,8 @@ SparseMatrix.prototype.set = function (index_row, index_col, value) {
         // insert two nodes (vertical and horizontal)
         node_left.next = new LinkedNode(value, index_col, node_left.next);
         node_above.next = new LinkedNode(value, index_row, node_above.next);
+        node_left.next.twin = node_above.next;
+        node_above.next.twin = node_left.next;
     } else if (value !== this.default_value) {
         // update values in existing nodes
         node_left.value = value;
@@ -209,12 +245,13 @@ SparseMatrix.prototype._multiplyMatVec = function (vec) {
     for (let i = vec.length - 1; i >= 0; i--) {
         m_vec.set(i, 0, vec[i]);
     }
-    let m_res = this.multiply(m_vec);
-    let res = new Array(vec.length);
+    let m_res = this.mul(m_vec);
+    let res = new Array(vec.length).fill(0);
     let pointer = m_res.columns[0].next;
     for (let i = 0; i < vec.length; i++) {
-        while (pointer.index < i) pointer = pointer.next;
-        res[i] = pointer.value;
+        while (pointer != null && pointer.index < i) pointer = pointer.next;
+        if (pointer == null) break;
+        if (pointer.index === i) res[i] = pointer.value;
     }
     return res;
 };
@@ -288,6 +325,88 @@ SparseMatrix.prototype.fromArray = function (array) {
         }
     }
     return this;
+};
+
+/**
+ * Compute associative function on row
+ * @param {number} index_row
+ * @param {function} func
+ * @param {number} default_value
+ * @returns {number} result
+ */
+SparseMatrix.prototype.computeByRow = function (index_row, func, default_value) {
+    this._checkIndices(index_row, 0);
+    let ptr = this.rows[index_row].next;
+    if (ptr == null) return default_value;
+    return ptr.compute(func, default_value);
+};
+
+/**
+ * Compute associative function on column
+ * @param {number} index_col
+ * @param {function} func
+ * @param {number} default_value
+ * @returns {number} result
+ */
+SparseMatrix.prototype.computeByColumn = function (index_col, func, default_value) {
+    this._checkIndices(0, index_col);
+    let ptr = this.columns[index_col].next;
+    if (ptr == null) return default_value;
+    return ptr.compute(func, default_value);
+};
+
+/**
+ * Compute associative function on matrix
+ * @param {function} func
+ * @param {number} default_value
+ * @returns {number} result
+ */
+SparseMatrix.prototype.compute = function (func, default_value) {
+    let result = default_value;
+    for (let i = 0; i < this.height; i++) {
+        let ptr = this.rows[i].next;
+        if (ptr != null) result = func(result, ptr.compute(func, default_value));
+    }
+    return result;
+};
+
+/**
+ * Apply function to all values in column
+ * @param {number} index_col
+ * @param {function} func
+ * @returns {number} result
+ */
+SparseMatrix.prototype.mapByColumn = function (index_col, func) {
+    this._checkIndices(0, index_col);
+    this._checkMapFunction(func);
+    let ptr = this.columns[index_col].next;
+    if (ptr != null) ptr.map(func);
+};
+
+/**
+ * Apply function to all values in row
+ * @param {number} index_row
+ * @param {function} func
+ * @returns {number} result
+ */
+SparseMatrix.prototype.mapByRow = function (index_row, func) {
+    this._checkIndices(index_row, 0);
+    this._checkMapFunction(func);
+    let ptr = this.rows[index_row].next;
+    if (ptr != null) ptr.map(func);
+};
+
+/**
+ * Apply function to all values in matrix
+ * @param {function} func
+ * @returns {number} result
+ */
+SparseMatrix.prototype.map = function (func) {
+    this._checkMapFunction(func);
+    for (let i = 0; i < this.height; i++) {
+        let ptr = this.rows[i].next;
+        if (ptr != null) ptr.map(func);
+    }
 };
 
 /**

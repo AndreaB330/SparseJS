@@ -37,4 +37,40 @@ console.log(res.toArray());
 // [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 ```
 
+# Page Rank example
+
+```js
+let n = 13;
+let damping_factor = 0.8;
+// links: (from, to, number of links)
+let links = [[0, 11, 2],
+    [12, 11, 3],
+    // ... more links ...
+    [3, 10, 1]];
+
+let mat = new SparseMatrix(n, n);
+
+links.forEach(function (link) {
+    mat.set(link[1], link[0], link[2]);
+}); // set links
+
+// normalize matrix
+for (let i = 0; i < n; i++) {
+    let column_sum = mat.computeByColumn(i, (a, b) => a + b, 0);
+    if (column_sum > 0) {
+        mat.mapByColumn(i, x => x / column_sum);
+    }
+}
+
+let page_rank = new Array(n).fill(1 / n); // initialize page_rank with 1/n values
+for (let iteration = 0; iteration < 15; iteration++) {
+    let next_page_rank = mat.mul(page_rank); // multiply vector by matrix (M*v)
+    for (let i = 0; i < n; i++)
+        page_rank[i] = next_page_rank[i] * damping_factor + (1 - damping_factor) / n; // recompute page rank
+}
+
+console.log(page_rank);
+// [0.0153, 0.0289, 0.0853, 0.0811, 0.0660, 0.1721, 0.0235, 0.0153, 0.0211, 0.0563, 0.1525, 0.2213, 0.0606]
+```
+
 TODO: a lot....

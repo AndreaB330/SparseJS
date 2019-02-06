@@ -25,6 +25,7 @@ function DemoPageRank() {
     $(active_btn).removeClass('active');
     active_btn = '#btn-page-rank';
     $(active_btn).addClass('active');
+    let matrix = new SparseMatrix();
     $('#content').html('');
 }
 
